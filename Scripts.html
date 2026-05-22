@@ -1954,7 +1954,7 @@ function abrirCorrigir(rnc, ano, mes){
     google.script.run
       .withFailureHandler(function(err){
         endGlobalLoading();
-        document.getElementById('msgCriar').textContent = (err && err.message) ? err.message : String(err);
+        showInlineMsg(document.getElementById('msgCriar'), (err && err.message) ? err.message : String(err));
       })
       .withSuccessHandler(function(arr){
         fillSelect(document.getElementById('fornecedor'), arr, true);
@@ -1969,7 +1969,7 @@ function abrirCorrigir(rnc, ano, mes){
     google.script.run
       .withFailureHandler(function(err){
         endGlobalLoading();
-        document.getElementById('msgCriar').textContent = (err && err.message) ? err.message : String(err);
+        showInlineMsg(document.getElementById('msgCriar'), (err && err.message) ? err.message : String(err));
       })
       .withSuccessHandler(function(res){
         endGlobalLoading();
@@ -2185,6 +2185,13 @@ function solicitarConfirmacaoAnexoResposta(){
 }
 
 /* ================== CRIAR / CORRIGIR: enviar ================== */
+function showInlineMsg(el, msg){
+  if (!el) return;
+  el.textContent = msg || '';
+  el.classList.remove('hidden');
+  el.style.display = 'inline';
+}
+
 async function enviarCriar(){
   var btnEnviar = document.getElementById('btnEnviar');
   if (btnEnviar && btnEnviar.dataset.locked === '1') return;
@@ -2200,15 +2207,15 @@ async function enviarCriar(){
   var descCorrecao = (document.getElementById('descCorrecao').value||'').trim();
   var msg = document.getElementById('msgCriar');
 
-  if (!/^\d{5}$/.test(pv)){ msg.textContent = 'PV inválido: use exatamente 5 dígitos (xxxxx).'; return; }
-  if (!/^(\d{5}|\d{5}\/\d{2})$/.test(op)){ msg.textContent = 'OP inválida: use 5 dígitos ou xxxxx/xx.'; return; }
-  if (!origem){ msg.textContent = 'Selecione a origem da não conformidade.'; return; }
-  if (!fornecedor){ msg.textContent = 'Selecione um Fornecedor.'; return; }
-  if (!responsavel){ msg.textContent = 'Informe o Responsável.'; return; }
-  if (descricao.length < 20){ msg.textContent = 'A descrição deve ter pelo menos 20 caracteres.'; return; }
-  if (!motivo){ msg.textContent = 'Selecione um Motivo.'; return; }
-  if (!disposicao){ msg.textContent = 'Selecione a Disposição (ação imediata).'; return; }
-  if (descCorrecao.length < 10){ msg.textContent = 'A descrição da ação corretiva deve ter pelo menos 10 caracteres.'; return; }
+  if (!/^\d{5}$/.test(pv)){ showInlineMsg(msg, 'PV inválido: use exatamente 5 dígitos (xxxxx).'); return; }
+  if (!/^(\d{5}|\d{5}\/\d{2})$/.test(op)){ showInlineMsg(msg, 'OP inválida: use 5 dígitos ou xxxxx/xx.'); return; }
+  if (!origem){ showInlineMsg(msg, 'Selecione a origem da não conformidade.'); return; }
+  if (!fornecedor){ showInlineMsg(msg, 'Selecione um Fornecedor.'); return; }
+  if (!responsavel){ showInlineMsg(msg, 'Informe o Responsável.'); return; }
+  if (descricao.length < 20){ showInlineMsg(msg, 'A descrição deve ter pelo menos 20 caracteres.'); return; }
+  if (!motivo){ showInlineMsg(msg, 'Selecione um Motivo.'); return; }
+  if (!disposicao){ showInlineMsg(msg, 'Selecione a Disposição (ação imediata).'); return; }
+  if (descCorrecao.length < 10){ showInlineMsg(msg, 'A descrição da ação corretiva deve ter pelo menos 10 caracteres.'); return; }
 
  setCriarSendLock(true);
 
@@ -2222,7 +2229,7 @@ async function enviarCriar(){
       .withFailureHandler(function(err){
         endGlobalLoading();
         setCriarSendLock(false);
-        document.getElementById('msgCriar').textContent = (err && err.message) ? err.message : String(err);
+        showInlineMsg(document.getElementById('msgCriar'), (err && err.message) ? err.message : String(err));
       })
       .withSuccessHandler(function(res){
         endGlobalLoading();
@@ -2239,6 +2246,8 @@ async function enviarCriar(){
         }
         if (res.driveError)     html += '<br><span style="color:#b91c1c">⚠ Drive: ' + res.driveError + '</span>';
         document.getElementById('msgCriar').innerHTML = html;
+        document.getElementById('msgCriar').classList.remove('hidden');
+        document.getElementById('msgCriar').style.display = 'inline';
 
         clearCriarForm();
         hide('view-criar'); show('view-home'); carregarTabelas();
@@ -2250,7 +2259,7 @@ async function enviarCriar(){
       .withFailureHandler(function(err){
         endGlobalLoading();
         setCriarSendLock(false);
-        document.getElementById('msgCriar').textContent = (err && err.message) ? err.message : String(err);
+        showInlineMsg(document.getElementById('msgCriar'), (err && err.message) ? err.message : String(err));
       })
       .withSuccessHandler(function(res){
         endGlobalLoading();
@@ -2266,6 +2275,8 @@ async function enviarCriar(){
           }
         }
         document.getElementById('msgCriar').innerHTML = html;
+        document.getElementById('msgCriar').classList.remove('hidden');
+        document.getElementById('msgCriar').style.display = 'inline';
 
         clearCriarForm();
         sairDeEdicao();
@@ -2292,7 +2303,7 @@ if (btnEnviarImprocedente) btnEnviarImprocedente.onclick = function(){
   var files = (anexoInput && anexoInput.files) ? anexoInput.files : [];
   if (!rnc) return;
   if (motivo.length < 15){
-    document.getElementById('respMsgImprocedente').textContent = 'Informe o motivo com ao menos 15 caracteres.';
+    showInlineMsg(document.getElementById('respMsgImprocedente'), 'Informe o motivo com ao menos 15 caracteres.');
     return;
   }
 
@@ -2305,27 +2316,23 @@ if (btnEnviarImprocedente) btnEnviarImprocedente.onclick = function(){
   google.script.run
     .withFailureHandler(function(err){
       endGlobalLoading();
-      document.getElementById('respMsgImprocedente').textContent = (err && err.message) ? err.message : String(err);
+      showInlineMsg(document.getElementById('respMsgImprocedente'), (err && err.message) ? err.message : String(err));
     })
     .withSuccessHandler(function(){
       endGlobalLoading();
-      document.getElementById('respMsgImprocedente').textContent = 'Improcedente enviada. Aguardando validação da Qualidade.';
+      showInlineMsg(document.getElementById('respMsgImprocedente'), 'Improcedente enviada. Aguardando validação da Qualidade.');
       setTimeout(function(){ hide('view-responder'); show('view-home'); carregarTabelas(); }, 800);
     })
     .responderRNC_Improcedente(TOKEN, rnc, motivo, anexos);
   })().catch(function(err){
     endGlobalLoading();
-    document.getElementById('respMsgImprocedente').textContent = (err && err.message) ? err.message : String(err);
+    showInlineMsg(document.getElementById('respMsgImprocedente'), (err && err.message) ? err.message : String(err));
   });
 };
 
 document.getElementById('btnSalvarResposta').onclick = async function(){
   var setRespMsg = function(msg){
-    var el = document.getElementById('respMsg');
-    if (!el) return;
-    el.textContent = msg || '';
-    el.classList.remove('hidden');
-    el.style.display = 'inline';
+    showInlineMsg(document.getElementById('respMsg'), msg);
   };
   if (RESP_MODE === 'concluir'){
     var rnc = document.getElementById('resp_rnc').value;
