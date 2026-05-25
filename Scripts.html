@@ -188,6 +188,12 @@ function parseDateBR(str){
   return (dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d) ? dt : null;
 }
 
+function isWeekendDate(dt){
+  if (!(dt instanceof Date) || isNaN(dt)) return false;
+  var day = dt.getDay();
+  return day === 0 || day === 6;
+}
+
 
 
 function formatDateInput(dt){
@@ -2469,6 +2475,11 @@ document.getElementById('btnSalvarResposta').onclick = async function(){
     }
     if (!isValidDateBR(pr)){
       setRespMsg('Prazo inválido na linha '+(i+1)+'. Use dd/mm/aaaa.');
+      return;
+    }
+    var prazoDate = parseDateBR(pr);
+    if (isWeekendDate(prazoDate)){
+      setRespMsg('Prazo na linha '+(i+1)+' não pode cair em fim de semana. Informe uma data útil (segunda a sexta).');
       return;
     }
     solucoes.push({ acao: ac, responsavel: rs, prazo: pr });
