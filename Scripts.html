@@ -2445,6 +2445,8 @@ document.getElementById('btnSalvarResposta').onclick = async function(){
   var pq4 = (document.getElementById('pq4').value||'').trim();
   var pq5 = (document.getElementById('pq5').value||'').trim();
   var concluida = !!(document.getElementById('resp_concluida') && document.getElementById('resp_concluida').checked);
+  var dataAberturaTxt = (document.getElementById('resp_dataAbertura').value || '').trim();
+  var dataAberturaDate = parseDateBR(dataAberturaTxt);
 
   if (pq1.length < 10){
      setRespMsg('Informe o 1º Porquê com ao menos 10 caracteres.');
@@ -2486,6 +2488,10 @@ document.getElementById('btnSalvarResposta').onclick = async function(){
       return;
     }
     var prazoDate = parseDateBR(pr);
+    if (dataAberturaDate && prazoDate && prazoDate.getTime() < dataAberturaDate.getTime()){
+      setRespMsg('Prazo na linha '+(i+1)+' deve ser maior ou igual à data de abertura da RNC.');
+      return;
+    }
     if (isWeekendDate(prazoDate)){
       setRespMsg('Prazo na linha '+(i+1)+' não pode cair em fim de semana. Informe uma data útil (segunda a sexta).');
       return;
