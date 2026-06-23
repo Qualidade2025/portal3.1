@@ -35,20 +35,7 @@ function responderRNC_Salvar(token, rncId, respostaObj, anexosConclusao, validar
     if (targetRow === -1) throw new Error('RNC não encontrada na aba Controle.');
 
     var prevStatus = String(vals[targetRow-1] && vals[targetRow-1][cols.etapa.index] || '').trim();
-
-    // Atualiza Controle com status de validação e data de resposta
-    var dataResposta = new Date();
-    shCtrl.getRange(targetRow, cols.dataResposta.column).setValue(dataResposta);
-    shCtrl.getRange(targetRow, cols.etapa.column).setValue(deveValidarConclusao ? 'Validação conclusão' : 'Validação resposta');
-
-    if (deveValidarConclusao) {
-      registrarDataHoraConclusao(shCtrl, targetRow, dataResposta); // M
-    }
-
-    var etapaLog = deveValidarConclusao ? 'Conclusão RNC' : 'Resposta RNC';
-    if (prevStatus === 'Correção resposta' && !deveValidarConclusao) etapaLog = 'Resposta corrigida';
-    if (prevStatus === 'Correção conclusão' && deveValidarConclusao) etapaLog = 'Conclusão corrigida';
-    _appendLog_(rncId, (sess && sess.area) ? sess.area : '', etapaLog, undefined, dataResposta);
+    var dataAberturaRnc = normalizarDataApenasDia(vals[targetRow-1] && vals[targetRow-1][cols.dataAbertura.index]);
 
     // Atualiza JSON com bloco "resposta"
     var found = _findRncFile_(rncId, '', '');
@@ -65,6 +52,13 @@ function responderRNC_Salvar(token, rncId, respostaObj, anexosConclusao, validar
       var y = parseInt(m[3], 10);
       var dt = new Date(y, mo, d);
       return (dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d) ? dt : null;
+    }
+
+    function normalizarDataApenasDia(valor){
+      if (!valor) return null;
+      var dt = valor instanceof Date ? valor : parsePrazo(valor);
+      if (!(dt instanceof Date) || isNaN(dt.getTime())) return null;
+      return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
     }
 
     function parseIndices(list, limit){
@@ -90,7 +84,11 @@ function responderRNC_Salvar(token, rncId, respostaObj, anexosConclusao, validar
       if (acao.length < 10) throw new Error('Ação proposta na linha ' + (idx+1) + ' deve ter ao menos 10 caracteres.');
       if (!responsavel) throw new Error('Responsável na linha ' + (idx+1) + ' é obrigatório.');
       if (!prazo) throw new Error('Prazo na linha ' + (idx+1) + ' é obrigatório no formato dd/mm/aaaa.');
-      if (!parsePrazo(prazo)) throw new Error('Prazo inválido na linha ' + (idx+1) + '. Use dd/mm/aaaa.');
+      var dataPrazo = parsePrazo(prazo);
+      if (!dataPrazo) throw new Error('Prazo inválido na linha ' + (idx+1) + '. Use dd/mm/aaaa.');
+      if (dataAberturaRnc && normalizarDataApenasDia(dataPrazo).getTime() < dataAberturaRnc.getTime()) {
+        throw new Error('Prazo na linha ' + (idx+1) + ' deve ser maior ou igual à data de abertura da RNC.');
+      }
 
       solucoes.push({ acao: acao, responsavel: responsavel, prazo: prazo });
     });
@@ -98,6 +96,20 @@ function responderRNC_Salvar(token, rncId, respostaObj, anexosConclusao, validar
     if (!solucoes.length) throw new Error('Informe ao menos uma ação proposta com responsável e prazo.');
 
     var acoesConcluidas = deveValidarConclusao ? parseIndices(respostaObj && respostaObj.acoesConcluidas, solucoes.length) : [];
+
+    // Atualiza Controle com status de validação e data de resposta
+    var dataResposta = new Date();
+    shCtrl.getRange(targetRow, cols.dataResposta.column).setValue(dataResposta);
+    shCtrl.getRange(targetRow, cols.etapa.column).setValue(deveValidarConclusao ? 'Validação conclusão' : 'Validação resposta');
+
+    if (deveValidarConclusao) {
+      registrarDataHoraConclusao(shCtrl, targetRow, dataResposta); // M
+    }
+
+    var etapaLog = deveValidarConclusao ? 'Conclusão RNC' : 'Resposta RNC';
+    if (prevStatus === 'Correção resposta' && !deveValidarConclusao) etapaLog = 'Resposta corrigida';
+    if (prevStatus === 'Correção conclusão' && deveValidarConclusao) etapaLog = 'Conclusão corrigida';
+    _appendLog_(rncId, (sess && sess.area) ? sess.area : '', etapaLog, undefined, dataResposta);
 
  obj.resposta = {
       dataRespostaIso: new Date().toISOString(),
