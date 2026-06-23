@@ -68,3 +68,64 @@ function listarMotivosPorFornecedor(fornecedor) {
   out.push('Outro');
   return out;
 }
+
+function listarMotivosResolucaoOutro(fornecedor) {
+  fornecedor = String(fornecedor || '').trim();
+  var sh = SpreadsheetApp.getActive().getSheetByName('Dados');
+  if (!sh) throw new Error('Aba "Dados" não encontrada.');
+
+  var lastRow = Math.max(sh.getLastRow(), 2);
+  var lastCol = sh.getLastColumn();
+
+  function normalizeKey(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function uniqueClean(values, skipSet) {
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < values.length; i++) {
+      var v = String(values[i] || '').trim();
+      var key = normalizeKey(v);
+      if (!v || key === 'outro' || seen[key] || (skipSet && skipSet[key])) continue;
+      seen[key] = true;
+      out.push(v);
+    }
+    out.sort();
+    return out;
+  }
+
+  var motivosFornecedor = [];
+  if (fornecedor && lastCol >= MOTIVOS_ANCHOR_COL) {
+    var endCol = Math.min(lastCol, 34); // AH
+    if (endCol >= MOTIVOS_ANCHOR_COL) {
+      var headers = sh.getRange(1, MOTIVOS_ANCHOR_COL, 1, endCol - MOTIVOS_ANCHOR_COL + 1).getValues()[0];
+      var colIndex = -1;
+      for (var h = 0; h < headers.length; h++) {
+        if (String(headers[h] || '').trim() === fornecedor) {
+          colIndex = MOTIVOS_ANCHOR_COL + h;
+          break;
+        }
+      }
+      if (colIndex !== -1) {
+        motivosFornecedor = sh.getRange(2, colIndex, lastRow - 1, 1).getValues().map(function(row) { return row[0]; });
+      }
+    }
+  }
+
+  motivosFornecedor = uniqueClean(motivosFornecedor);
+  var fornecedorSet = {};
+  motivosFornecedor.forEach(function(v) { fornecedorSet[normalizeKey(v)] = true; });
+
+  var motivosGerais = [];
+  if (lastCol >= 12) {
+    motivosGerais = sh.getRange(2, 12, lastRow - 1, 1).getValues().map(function(row) { return row[0]; });
+  }
+  motivosGerais = uniqueClean(motivosGerais, fornecedorSet);
+
+  return {
+    fornecedor: fornecedor,
+    motivosFornecedor: motivosFornecedor,
+    motivosGerais: motivosGerais
+  };
+}
