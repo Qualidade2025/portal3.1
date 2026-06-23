@@ -189,6 +189,42 @@
     </div>
   </div>
 
+  <div id="resolverMotivoOutroModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog resolver-motivo-dialog" role="dialog" aria-modal="true" aria-labelledby="resolverMotivoOutroTitulo" style="max-width:720px">
+      <div class="modal-header">
+        <h3 id="resolverMotivoOutroTitulo" style="margin:0">Resolver motivo da RNC</h3>
+        <button class="btn-grey modal-close" id="btnFecharResolverMotivoOutro" type="button">✕</button>
+      </div>
+      <div class="modal-body" style="min-height:0">
+        <p class="muted" id="resolverMotivoOutroInfo" style="margin-top:0"></p>
+        <div class="row">
+          <div class="col-6">
+            <label>Motivos deste fornecedor</label>
+            <div id="motivosFornecedorOutroList" class="motivo-resolucao-list"></div>
+          </div>
+          <div class="col-6">
+            <label>Outros motivos cadastrados</label>
+            <div id="motivosGeraisOutroList" class="motivo-resolucao-list"></div>
+          </div>
+          <div class="col-12">
+            <label>Criar novo motivo</label>
+            <input id="novoMotivoOutroInput" placeholder="Digite um novo motivo padronizado">
+          </div>
+        </div>
+        <div id="resolverMotivoOutroMsg" class="err" style="margin-top:8px"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button class="btn-grey" id="btnCancelarResolverMotivoOutro" type="button">Cancelar</button>
+        <button class="btn" id="btnConfirmarResolverMotivoOutro" type="button">Confirmar motivo</button>
+      </div>
+      <div id="resolverMotivoOutroLoading" class="modal-inline-loading hidden" role="status" aria-live="polite">
+        <span class="logout-spinner" aria-hidden="true"></span>
+        <span>Carregando motivos...</span>
+      </div>
+    </div>
+  </div>
+
   <div id="classificarReincidenciaModal" class="modal hidden" aria-hidden="true">
     <div class="modal-backdrop"></div>
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="classificarReincidenciaTitulo" style="max-width:520px">
