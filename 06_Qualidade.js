@@ -2,7 +2,7 @@
  * Ações da Qualidade (Abertura e Resposta)
  * ========================================================= */
 
-function validarAbertura(token, rncId) {
+function validarAbertura(token, rncId, motivoResolvido) {
   var sess = _getSession_(token);
   rncId = String(rncId||'').trim();
   if (!rncId) throw new Error('RNC inválida.');
@@ -18,6 +18,15 @@ function validarAbertura(token, rncId) {
     if (code === rncId) { targetRow = r+1; break; } // 1-based
   }
   if (targetRow === -1) throw new Error('RNC não encontrada na aba Controle.');
+
+  var motivoAtual = String(vals[targetRow - 1][cols.descricaoNc.index] || '').trim();
+  motivoResolvido = String(motivoResolvido || '').trim();
+  if (motivoAtual.toLowerCase() === 'outro') {
+    if (!motivoResolvido || motivoResolvido.toLowerCase() === 'outro') {
+      throw new Error('Selecione ou cadastre o motivo correto antes de validar.');
+    }
+    resolverMotivoOutroAbertura(token, rncId, motivoResolvido);
+  }
 
   sh.getRange(targetRow, cols.etapa.column).setValue('Abertura');
   sh.getRange(targetRow, cols.dataValidacaoAbertura.column).setValue(new Date());
@@ -204,4 +213,48 @@ function _getControleSheet_() {
   var sh = ss.getSheetByName('Controle');
   if (!sh) throw new Error('Aba "Controle" não encontrada.');
   return sh;
+}
+
+function resolverMotivoOutroAbertura(token, rncId, novoMotivo) {
+  var sess = _getSession_(token);
+  rncId = String(rncId || '').trim();
+  novoMotivo = String(novoMotivo || '').trim();
+  if (!rncId) throw new Error('RNC inválida.');
+  if (!novoMotivo || novoMotivo.toLowerCase() === 'outro') {
+    throw new Error('Informe um motivo válido diferente de "Outro".');
+  }
+
+  var ss = SpreadsheetApp.getActive();
+  var sh = ss.getSheetByName('Controle');
+  if (!sh) throw new Error('Aba "Controle" não encontrada.');
+  var vals = sh.getDataRange().getValues();
+  var cols = _getControleColumnIndices_(sh);
+
+  var targetRow = -1;
+  var motivoAnterior = '';
+  for (var r = 1; r < vals.length; r++) {
+    var code = String(vals[r][cols.rnc.index] || '').trim();
+    if (code === rncId) {
+      targetRow = r + 1;
+      motivoAnterior = String(vals[r][cols.descricaoNc.index] || '').trim();
+      break;
+    }
+  }
+  if (targetRow === -1) throw new Error('RNC não encontrada na aba Controle.');
+
+  var found = _findRncFile_(rncId, '', '');
+  if (!found || !found.file) throw new Error('Arquivo JSON da RNC não localizado para atualização.');
+
+  var txt = found.file.getBlob().getDataAsString();
+  var obj = {};
+  try { obj = JSON.parse(txt); } catch(e) { obj = {}; }
+  obj.motivo = novoMotivo;
+  obj.ultimaAtualizacaoIso = new Date().toISOString();
+  obj.ultimaAtualizacaoMotivoOutroIso = obj.ultimaAtualizacaoIso;
+
+  found.file.setContent(JSON.stringify(obj, null, 2));
+  sh.getRange(targetRow, cols.descricaoNc.column).setValue(novoMotivo);
+
+  _appendLog_(rncId, (sess && sess.area) ? sess.area : '', 'Motivo atualizado', 'De "' + motivoAnterior + '" para "' + novoMotivo + '"');
+  return { ok: true, rncId: rncId, row: targetRow, motivo: novoMotivo };
 }
