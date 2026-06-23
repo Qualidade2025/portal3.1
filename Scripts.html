@@ -7,6 +7,7 @@ var DEV_MODE = null;
 var ANEXOS_ABERTURA = [], ANEXOS_RESPOSTA = [], ANEXOS_CONCLUSAO = [], ANEXOS_IMPROCEDENTE = [];
 var LAST_DEV_ROWS = [], LAST_PEND_ROWS = [], LAST_ALL_ROWS = [], LAST_RNC_ROWS = [];
 var CURRENT_RESPOSTA = null, CURRENT_VALIDACAO_CONCLUSAO = null;
+var MOTIVO_OUTRO_STATE = { selected: '', lists: null, requiresResolution: false, original: '' };
 var selecionarConclusaoResolver = null;
 var confirmarAnexoRespostaResolver = null;
 var THEME_KEY = 'portal-theme';
@@ -1760,6 +1761,7 @@ function preencherCamposResponder(rnc, ano, mes){
       document.getElementById('resp_responsavel').value = d.responsavel || '';
       document.getElementById('resp_descricao').value = d.descricao || '';
       document.getElementById('resp_motivo').value = d.motivo || '';
+      resetMotivoOutroState(d.motivo || '');
       document.getElementById('resp_disposicao').value = d.disposicao || '';
       document.getElementById('resp_descCorrecao').value = d.descricaoAcaoCorretiva || '';
       autoResizeTextarea(document.getElementById('resp_descricao'));
@@ -2561,10 +2563,174 @@ document.getElementById('btnSalvarResposta').onclick = async function(){
     .responderRNC_Salvar(TOKEN, rnc, { pq1:pq1, pq2:pq2, pq3:pq3, pq4:pq4, pq5:pq5, solucoes:solucoes, validarConclusao:marcarConclusao, acoesConcluidas: acoesConcluidasResp }, anexos, marcarConclusao);
 };
 
+
+function isMotivoOutroValor(valor){
+  return String(valor || '').trim().toLowerCase() === 'outro';
+}
+
+function setMotivoOutroSelectable(flag){
+  var motivoEl = document.getElementById('resp_motivo');
+  if (motivoEl) motivoEl.classList.toggle('motivo-outro-selectable', !!flag);
+}
+
+function resetMotivoOutroState(motivo){
+  var precisaResolver = isMotivoOutroValor(motivo);
+  MOTIVO_OUTRO_STATE = {
+    selected: '',
+    lists: null,
+    requiresResolution: precisaResolver,
+    original: precisaResolver ? 'Outro' : ''
+  };
+  setMotivoOutroSelectable(precisaResolver);
+}
+
+function setResolverMotivoOutroLoading(loading){
+  var modal = document.getElementById('resolverMotivoOutroModal');
+  var indicador = document.getElementById('resolverMotivoOutroLoading');
+  if (modal) modal.setAttribute('aria-busy', loading ? 'true' : 'false');
+  if (indicador) indicador.classList.toggle('hidden', !loading);
+  ['btnFecharResolverMotivoOutro','btnCancelarResolverMotivoOutro','btnConfirmarResolverMotivoOutro'].forEach(function(id){
+    var btn = document.getElementById(id);
+    if (btn) btn.disabled = loading;
+  });
+  var input = document.getElementById('novoMotivoOutroInput');
+  if (input) input.disabled = loading;
+  document.querySelectorAll('.motivo-resolucao-option').forEach(function(btn){ btn.disabled = loading; });
+}
+
+function fecharResolverMotivoOutro(){
+  var modal = document.getElementById('resolverMotivoOutroModal');
+  if (modal && modal.getAttribute('aria-busy') === 'true') return;
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderMotivoOutroList(containerId, items){
+  var wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!items || !items.length){
+    wrap.innerHTML = '<p class="motivo-resolucao-empty">Nenhum motivo encontrado.</p>';
+    return;
+  }
+  items.forEach(function(item){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'motivo-resolucao-option';
+    btn.textContent = item;
+    btn.dataset.value = item;
+    btn.onclick = function(){
+      MOTIVO_OUTRO_STATE.selected = this.dataset.value || '';
+      var input = document.getElementById('novoMotivoOutroInput');
+      if (input) input.value = '';
+      document.querySelectorAll('.motivo-resolucao-option').forEach(function(outro){
+        outro.classList.toggle('selected', outro === btn);
+      });
+      var msg = document.getElementById('resolverMotivoOutroMsg');
+      if (msg) msg.textContent = '';
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+function abrirResolverMotivoOutro(){
+  var motivoEl = document.getElementById('resp_motivo');
+  var fornecedorEl = document.getElementById('resp_fornecedor');
+  var rncEl = document.getElementById('resp_rnc');
+  var msg = document.getElementById('resolverMotivoOutroMsg');
+  var modal = document.getElementById('resolverMotivoOutroModal');
+  if (!motivoEl || !MOTIVO_OUTRO_STATE.requiresResolution) return;
+  if (!modal) return;
+
+  var valorAtual = String(motivoEl.value || '').trim();
+  MOTIVO_OUTRO_STATE.selected = isMotivoOutroValor(valorAtual) ? '' : valorAtual;
+  MOTIVO_OUTRO_STATE.lists = null;
+  if (msg) msg.textContent = '';
+  var input = document.getElementById('novoMotivoOutroInput');
+  if (input) input.value = '';
+  var fornecedor = fornecedorEl ? fornecedorEl.value : '';
+  var rnc = rncEl ? rncEl.value : '';
+  var info = document.getElementById('resolverMotivoOutroInfo');
+  if (info) info.textContent = 'RNC: ' + (rnc || '—') + ' • Fornecedor: ' + (fornecedor || '—') + ' • Motivo original: Outro' + (MOTIVO_OUTRO_STATE.selected ? ' • Selecionado: ' + MOTIVO_OUTRO_STATE.selected : '');
+  renderMotivoOutroList('motivosFornecedorOutroList', []);
+  renderMotivoOutroList('motivosGeraisOutroList', []);
+  modal.classList.remove('hidden');
+  setResolverMotivoOutroLoading(true);
+  google.script.run
+    .withFailureHandler(function(err){
+      setResolverMotivoOutroLoading(false);
+      if (msg) msg.textContent = (err && err.message) ? err.message : String(err);
+    })
+    .withSuccessHandler(function(res){
+      setResolverMotivoOutroLoading(false);
+      MOTIVO_OUTRO_STATE.lists = res || {};
+      renderMotivoOutroList('motivosFornecedorOutroList', (res && res.motivosFornecedor) || []);
+      renderMotivoOutroList('motivosGeraisOutroList', (res && res.motivosGerais) || []);
+      if (MOTIVO_OUTRO_STATE.selected) {
+        document.querySelectorAll('.motivo-resolucao-option').forEach(function(btn){
+          btn.classList.toggle('selected', String(btn.dataset.value || '') === MOTIVO_OUTRO_STATE.selected);
+        });
+      }
+    })
+    .listarMotivosResolucaoOutro(fornecedor || '');
+}
+
+function confirmarResolverMotivoOutro(){
+  var input = document.getElementById('novoMotivoOutroInput');
+  var msg = document.getElementById('resolverMotivoOutroMsg');
+  var novo = input && input.value ? input.value.trim() : '';
+  var motivoFinal = novo || MOTIVO_OUTRO_STATE.selected || '';
+  var rnc = (document.getElementById('resp_rnc') && document.getElementById('resp_rnc').value) || (document.getElementById('btnValidar') && document.getElementById('btnValidar').dataset.rnc) || '';
+  if (!motivoFinal || isMotivoOutroValor(motivoFinal)){
+    if (msg) msg.textContent = 'Selecione um motivo existente ou cadastre um novo motivo válido.';
+    return;
+  }
+  var all = [];
+  if (MOTIVO_OUTRO_STATE.lists){
+    all = all.concat(MOTIVO_OUTRO_STATE.lists.motivosFornecedor || [], MOTIVO_OUTRO_STATE.lists.motivosGerais || []);
+  }
+  var normalized = motivoFinal.toLowerCase();
+  if (novo && all.some(function(v){ return String(v || '').trim().toLowerCase() === normalized; })){
+    if (msg) msg.textContent = 'Este motivo já existe na lista. Selecione-o em vez de criar novo.';
+    return;
+  }
+  MOTIVO_OUTRO_STATE.selected = motivoFinal;
+  var motivoEl = document.getElementById('resp_motivo');
+  if (motivoEl) motivoEl.value = motivoFinal;
+  setMotivoOutroSelectable(true);
+  var qualidadeMsg = document.getElementById('qualidadeMsg');
+  if (qualidadeMsg) showInlineMsg(qualidadeMsg, 'Motivo selecionado. Ele será salvo ao validar a RNC.');
+  fecharResolverMotivoOutro();
+}
+
+var respMotivoEl = document.getElementById('resp_motivo');
+if (respMotivoEl) respMotivoEl.onclick = abrirResolverMotivoOutro;
+['btnFecharResolverMotivoOutro','btnCancelarResolverMotivoOutro'].forEach(function(id){
+  var btn = document.getElementById(id);
+  if (btn) btn.onclick = fecharResolverMotivoOutro;
+});
+var btnConfirmarResolverMotivoOutro = document.getElementById('btnConfirmarResolverMotivoOutro');
+if (btnConfirmarResolverMotivoOutro) btnConfirmarResolverMotivoOutro.onclick = confirmarResolverMotivoOutro;
+var novoMotivoOutroInput = document.getElementById('novoMotivoOutroInput');
+if (novoMotivoOutroInput) novoMotivoOutroInput.oninput = function(){
+  if (this.value.trim()){
+    MOTIVO_OUTRO_STATE.selected = '';
+    document.querySelectorAll('.motivo-resolucao-option').forEach(function(btn){ btn.classList.remove('selected'); });
+  }
+  var msg = document.getElementById('resolverMotivoOutroMsg');
+  if (msg) msg.textContent = '';
+};
+
 /* ================== QUALIDADE – Validações ================== */
 document.getElementById('btnValidar').onclick = function(){
   var rnc = this.dataset.rnc || document.getElementById('resp_rnc').value;
   if (!rnc) return;
+  var motivoAtual = document.getElementById('resp_motivo') ? document.getElementById('resp_motivo').value : '';
+  var motivoResolvido = MOTIVO_OUTRO_STATE.requiresResolution ? String(MOTIVO_OUTRO_STATE.selected || motivoAtual || '').trim() : '';
+  if (MOTIVO_OUTRO_STATE.requiresResolution && (!motivoResolvido || isMotivoOutroValor(motivoResolvido))){
+    var msgOutro = document.getElementById('qualidadeMsg');
+    showInlineMsg(msgOutro, 'Selecione ou cadastre o motivo correto antes de validar.');
+    return;
+  }
   beginGlobalLoading();
   google.script.run
     .withFailureHandler(function(err){
@@ -2576,7 +2742,7 @@ document.getElementById('btnValidar').onclick = function(){
       document.getElementById('qualidadeMsg').textContent = 'RNC validada com sucesso.';
       setTimeout(function(){ hide('view-responder'); show('view-home'); carregarTabelas(); }, 600);
     })
-    .validarAbertura(TOKEN, rnc);
+    .validarAbertura(TOKEN, rnc, motivoResolvido);
 };
 document.getElementById('btnRetornar').onclick = function(){
   var box = document.getElementById('retornoBox');
